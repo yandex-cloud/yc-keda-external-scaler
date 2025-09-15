@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "yc-keda-external-scaler.fullname" . }}
+  labels:
+    {{- include "yc-keda-external-scaler.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  {{- with .Values.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      {{- include "yc-keda-external-scaler.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "yc-keda-external-scaler.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "yc-keda-external-scaler.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: scaler
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          env:
+            - name: IAM_ENDPOINT
+              value: {{ .Values.config.iamEndpoint | quote }}
+            - name: MONITORING_ENDPOINT
+              value: {{ .Values.config.monitoringEndpoint | quote }}
+            - name: GRPC_PORT
+              value: {{ .Values.config.grpcPort | quote }}
+            - name: HTTP_PORT
+              value: {{ .Values.config.httpPort | quote }}
+            - name: HEALTH_PATH
+              value: {{ .Values.config.healthPath | quote }}
+            - name: KEY_PATH
+              value: {{ .Values.config.keyPath | quote }}
+            - name: API_TIMEOUT
+              value: {{ .Values.config.apiTimeout | quote }}
+          ports:
+            - containerPort: {{ .Values.config.grpcPort }}
+              name: grpc
+              protocol: TCP
+            - containerPort: {{ .Values.config.httpPort }}
+              name: http
+              protocol: TCP
+          volumeMounts:
+            - name: sa-key
+              mountPath: {{ .Values.config.keyPath | quote }}
+              subPath: sa-key.json
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: {{ .Values.config.healthPath }}
+              port: {{ .Values.config.httpPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.config.healthPath }}
+              port: {{ .Values.config.httpPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.config.healthPath }}
+              port: {{ .Values.config.httpPort }}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: sa-key
+          secret:
+            secretName: {{ .Values.secretName }}
+            defaultMode: 0400

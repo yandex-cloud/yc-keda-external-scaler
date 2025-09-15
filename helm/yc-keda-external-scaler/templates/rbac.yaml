@@ -1,0 +1,33 @@
+{{- if .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "yc-keda-external-scaler.fullname" . }}
+  labels:
+    {{- include "yc-keda-external-scaler.labels" . | nindent 4 }}
+rules:
+- apiGroups: ["keda.sh"]
+  resources: ["scaledobjects", "scaledjobs"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "yc-keda-external-scaler.fullname" . }}
+  labels:
+    {{- include "yc-keda-external-scaler.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "yc-keda-external-scaler.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "yc-keda-external-scaler.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}

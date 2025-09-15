@@ -1,0 +1,104 @@
+replicaCount: 2
+
+image:
+  repository: cr.yandex/crpjfmfou6gflobbfvfv/keda/yc-keda-external-scaler
+  tag: v1.2.17
+  pullPolicy: IfNotPresent
+
+# Application configuration
+config:
+  iamEndpoint: "https://iam.api.cloud.yandex.net"
+  monitoringEndpoint: "https://monitoring.api.cloud.yandex.net"
+  
+  grpcPort: 8080
+  httpPort: 8081
+  healthPath: "/health"
+  
+  keyPath: "/app/key.json"
+  
+  apiTimeout: "30s"
+
+# ServiceAccount configuration
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+  automountServiceAccountToken: true
+
+# RBAC configuration
+rbac:
+  create: true
+
+# High Availability
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Pod anti-affinity configuration
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - yc-keda-external-scaler
+        topologyKey: kubernetes.io/hostname
+
+# Deployment strategy
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 1
+
+# HPA
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Node selection
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Pod Security Context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  runAsGroup: 65534
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container Security Context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65534
+  capabilities:
+    drop:
+    - ALL
+
+secretName: yandex-sa-key
+
+secret:
+  create: true
+  name: yandex-sa-key
+  data: ""
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 200m
+    memory: 256Mi

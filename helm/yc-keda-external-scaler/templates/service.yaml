@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "yc-keda-external-scaler.fullname" . }}
+  labels:
+    {{- include "yc-keda-external-scaler.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "yc-keda-external-scaler.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: grpc
+      protocol: TCP
+      port: {{ .Values.config.grpcPort }}
+      targetPort: {{ .Values.config.grpcPort }}
+    - name: http
+      protocol: TCP
+      port: {{ .Values.config.httpPort }}
+      targetPort: {{ .Values.config.httpPort }}

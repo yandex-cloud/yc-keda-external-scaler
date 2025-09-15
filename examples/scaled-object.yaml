@@ -1,0 +1,28 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-demo-scaler
+spec:
+  scaleTargetRef:
+    name: my-demo-app
+  pollingInterval: 30
+  cooldownPeriod: 300
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  triggers:
+  - type: external
+    metadata:
+      scalerAddress: yc-keda-external-scaler.default.svc.cluster.local:8080
+      # Yandex Monitoring query
+      query: | 
+        series_sum("load_balancer.requests_count_per_second"{service="application-load-balancer", load_balancer="xxx", http_router="*", virtual_host="*", route="route-xxx", backend_group="*", backend="*", zone="*", code="total"})
+      # Yandex folder ID containing the monitoring metrics
+      folderId: "xxx"
+      # Target metric value per pod
+      targetValue: "100"
+      # Downsampling configuration
+      downsampling.gridAggregation: "AVG"
+      downsampling.gridInterval: "120000" # ms, aggregate metrics in a 2-minute window to get one average value
+      # Time windows configuration
+      timeWindow: "2m"          # Analyze 2 minutes of data
+      timeWindowOffset: "30s"    # Offset 30 seconds back
