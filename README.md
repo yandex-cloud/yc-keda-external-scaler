@@ -1,0 +1,1 @@
+# yc-keda-external-scaler
