@@ -179,15 +179,26 @@ func (c *Client) QueryMetric(options QueryOptions, logger *logger.Logger) (float
 	for i, metric := range metricResp.Metrics {
 		logger.Debug("Processing metric %d: name=%s, labels=%v", i, metric.Name, metric.Labels)
 
+		var allMetricValues []interface{}
+
 		for _, val := range metric.Timeseries.DoubleValues {
-			totalCount++
+			allMetricValues = append(allMetricValues, val)
+		}
+
+		for _, val := range metric.Timeseries.Int64Values {
+			allMetricValues = append(allMetricValues, float64(val))
+		}
+
+		totalCount += len(allMetricValues)
+
+		for _, val := range allMetricValues {
 			if str, ok := val.(string); ok && str == "NaN" {
 				nanCount++
 			}
 		}
 
 		metricValues, newLastValid := ExtractValidValues(
-			metric.Timeseries.DoubleValues,
+			allMetricValues,
 			options.NaNStrategy,
 			lastValid,
 		)

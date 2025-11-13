@@ -2,8 +2,8 @@ apiVersion: v2
 name: yc-keda-external-scaler
 description: KEDA external scaler for Yandex Monitoring
 type: application
-version: 1.1.1
-appVersion: "v1.2.17"
+version: 1.1.3
+appVersion: "v1.2.19"
 maintainers:
   - name: Kirill Shevchuk
     email: kirshe@yandex-team.ru

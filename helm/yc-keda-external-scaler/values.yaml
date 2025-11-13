@@ -1,8 +1,8 @@
 replicaCount: 2
 
 image:
-  repository: cr.yandex/crpjfmfou6gflobbfvfv/keda/yc-keda-external-scaler
-  tag: v1.2.17
+  repository: cr.yandex/sol/keda/yc-keda-external-scaler
+  tag: v1.2.19
   pullPolicy: IfNotPresent
 
 # Application configuration

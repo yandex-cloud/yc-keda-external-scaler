@@ -59,6 +59,10 @@ func ExtractValidValues(values []interface{}, strategy NaNStrategy, lastValid *f
 		case float64:
 			result = append(result, v)
 			lastValid = &v
+		case int64:
+			floatVal := float64(v)
+			result = append(result, floatVal)
+			lastValid = &floatVal
 		case string:
 			if v == "NaN" {
 				switch strategy {
