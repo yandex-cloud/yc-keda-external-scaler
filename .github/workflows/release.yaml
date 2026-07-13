@@ -95,6 +95,6 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --verify-tag \
             --generate-notes \
-            --title "yc-keda-external-scaler $GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
             "dist/yc-keda-external-scaler-${{ steps.version.outputs.version }}.tgz" \
             dist/checksums.txt
