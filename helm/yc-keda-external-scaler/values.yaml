@@ -1,8 +1,12 @@
 replicaCount: 2
 
+nameOverride: ""
+fullnameOverride: ""
+
 image:
   repository: cr.yandex/sol/keda/yc-keda-external-scaler
-  tag: v1.2.19
+  tag: ""
+  digest: ""
   pullPolicy: IfNotPresent
 
 # Application configuration
@@ -23,11 +27,7 @@ serviceAccount:
   create: true
   annotations: {}
   name: ""
-  automountServiceAccountToken: true
-
-# RBAC configuration
-rbac:
-  create: true
+  automountServiceAccountToken: false
 
 # High Availability
 podDisruptionBudget:
@@ -45,7 +45,7 @@ affinity:
           - key: app.kubernetes.io/name
             operator: In
             values:
-            - yc-keda-external-scaler
+            - '{{ include "yc-keda-external-scaler.name" . }}'
         topologyKey: kubernetes.io/hostname
 
 # Deployment strategy
@@ -88,11 +88,14 @@ securityContext:
     drop:
     - ALL
 
-secretName: yandex-sa-key
+# Deprecated: used only as an existing Secret fallback when secret.create=false.
+secretName: ""
 
 secret:
   create: true
-  name: yandex-sa-key
+  existingSecret: ""
+  name: ""
+  key: sa-key.json
   data: ""
 
 resources:

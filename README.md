@@ -1,15 +1,73 @@
 # yc-keda-external-scaler
-[KEDA External Scaler](https://keda.sh/docs/2.17/concepts/external-scalers/) for [Yandex Cloud Monitoring](https://yandex.cloud/en/services/monitoring).
+[KEDA External Scaler](https://keda.sh/docs/2.20/concepts/external-scalers/) for [Yandex Cloud Monitoring](https://yandex.cloud/en/services/monitoring).
+
+Releases publish an immutable multi-platform scaler image to Yandex Container
+Registry and attach the packaged Helm chart to the corresponding GitHub
+Release. Mutable `latest` artifacts are intentionally not published.
 
 ## Deployment
 
-1. [Install](https://keda.sh/docs/2.17/deploy/) KEDA.
+1. [Install](https://keda.sh/docs/2.20/deploy/) KEDA.
 2. [Create](https://yandex.cloud/en/docs/iam/operations/sa/create) a service account with the `monitoring.viewer` role.
 3. [Create](https://yandex.cloud/en/docs/iam/operations/authentication/manage-authorized-keys#create-authorized-key) an authorized key and save it locally.
 
 ```bash
-git clone https://github.com/yandex-cloud/yc-keda-external-scaler.git
-helm install yc-keda-external-scaler yc-keda-external-scaler/helm/yc-keda-external-scaler/. --set-file secret.data=./key.json
+helm install yc-keda-external-scaler \
+  https://github.com/yandex-cloud/yc-keda-external-scaler/releases/download/v1.3.0/yc-keda-external-scaler-1.3.0.tgz \
+  --set-file secret.data=./key.json
+```
+
+The default installation creates a Secret from the authorized-key file. To use
+an existing Secret instead:
+
+```bash
+helm install yc-keda-external-scaler \
+  https://github.com/yandex-cloud/yc-keda-external-scaler/releases/download/v1.3.0/yc-keda-external-scaler-1.3.0.tgz \
+  --set secret.existingSecret=my-yandex-key \
+  --set secret.key=sa-key.json
+```
+
+The chart supports Kubernetes 1.23 and newer. It creates no scaler RBAC and
+does not automount a Kubernetes service-account token. With the recommended
+release name, the stable gRPC endpoint is
+`yc-keda-external-scaler.<namespace>.svc.cluster.local:8080`.
+
+## Release artifacts
+
+Release `v1.3.0` consists of:
+
+- `cr.yandex/sol/keda/yc-keda-external-scaler:v1.3.0`
+- `yc-keda-external-scaler-1.3.0.tgz` on the GitHub Release
+- `checksums.txt` containing the chart SHA-256 checksum
+
+Verify a downloaded release chart with:
+
+```bash
+sha256sum --check checksums.txt
+```
+
+See [UPGRADING.md](UPGRADING.md) for the `1.3.0` compatibility notes and
+[RELEASING.md](RELEASING.md) for the maintainer release procedure.
+
+## Koldun consumption
+
+Koldun can download the immutable GitHub Release chart and copy the scaler
+image independently:
+
+```yaml
+scalerVersion: "1.3.0"
+
+charts:
+  yc-keda-external-scaler:
+    source: "https://github.com/yandex-cloud/yc-keda-external-scaler/releases/download/v{{ .scalerVersion }}/yc-keda-external-scaler-{{ .scalerVersion }}.tgz"
+    name: "yc-keda-external-scaler"
+    includeInto: "helm"
+
+images:
+  yc-keda-external-scaler:
+    copy:
+      repository: "cr.yandex/sol/keda/yc-keda-external-scaler"
+      tag: "v{{ .scalerVersion }}"
 ```
 
 ## Usage with ScaledObject
@@ -53,7 +111,7 @@ spec:
 |-------|-------------|---------|---------|
 | `query` | [Yandex Monitoring query](https://yandex.cloud/en/docs/monitoring/concepts/querying) | **Required** | - |
 | `folderId` | [Yandex Cloud folder ID](https://yandex.cloud/en/docs/resource-manager/operations/folder/get-id)  | **Required** | - |
-| `targetValue` | Target metric value for scaling | **Required** | Any positive number |
+| `targetValue` | Target metric value for scaling | `80` | Any positive finite number |
 | `timeWindow` | Time range for metric query | `5m` | Go duration format: `1m`, `2m30s`, `5m` |
 | `timeWindowOffset` | Offset to shift time window back (avoids trailing zeros) | `30s` | Go duration format: `30s`, `1m`, `2m` |
 | `downsampling.gridAggregation` | Yandex Monitoring downsampling aggregation function | - | `MAX`, `MIN`, `SUM`, `AVG`, `LAST`, `COUNT` |

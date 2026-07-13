@@ -56,6 +56,8 @@ type QueryOptions struct {
 
 func ParseNaNStrategy(s string) NaNStrategy {
 	switch strings.ToLower(s) {
+	case "skip":
+		return NaNStrategySkip
 	case "zero":
 		return NaNStrategyZero
 	case "error":
@@ -65,6 +67,13 @@ func ParseNaNStrategy(s string) NaNStrategy {
 	default:
 		return NaNStrategyError
 	}
+}
+
+func ParseOptionalAggregationMethod(s string) AggregationMethod {
+	if strings.TrimSpace(s) == "" {
+		return ""
+	}
+	return ParseAggregationMethod(s)
 }
 
 func ParseAggregationMethod(s string) AggregationMethod {

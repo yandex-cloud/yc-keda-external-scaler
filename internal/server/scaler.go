@@ -3,12 +3,14 @@ package server
 import (
 	"context"
 	"fmt"
+	"math"
+	"strconv"
+
 	protos "keda-external-scaler-yc-monitoring/gen/proto/externalscaler"
 	"keda-external-scaler-yc-monitoring/internal/auth"
 	"keda-external-scaler-yc-monitoring/internal/config"
 	"keda-external-scaler-yc-monitoring/internal/logger"
 	"keda-external-scaler-yc-monitoring/internal/metrics"
-	"strconv"
 )
 
 type ExternalScalerServer struct {
@@ -66,14 +68,10 @@ func (s *ExternalScalerServer) GetMetricSpec(ctx context.Context, req *protos.Sc
 
 	log.Debug("GetMetricSpec called: name=%s, namespace=%s", req.Name, req.Namespace)
 
-	targetStr := metadata["targetValue"]
-	targetValue := 80.0
-	if targetStr != "" {
-		if parsed, err := strconv.ParseFloat(targetStr, 64); err == nil {
-			targetValue = parsed
-		} else {
-			log.Warn("Failed to parse targetValue '%s', using default: %f", targetStr, targetValue)
-		}
+	targetValue, err := parseTargetValue(metadata["targetValue"])
+	if err != nil {
+		log.Error("Invalid targetValue: %v", err)
+		return nil, err
 	}
 
 	metricSpec := &protos.MetricSpec{
@@ -96,11 +94,10 @@ func (s *ExternalScalerServer) GetMetrics(ctx context.Context, req *protos.GetMe
 	log.Debug("GetMetrics called: name=%s, namespace=%s, metadata=%v",
 		req.ScaledObjectRef.Name, req.ScaledObjectRef.Namespace, metadata)
 
-	targetValue := 80.0
-	if targetStr := metadata["targetValue"]; targetStr != "" {
-		if parsed, err := strconv.ParseFloat(targetStr, 64); err == nil {
-			targetValue = parsed
-		}
+	targetValue, err := parseTargetValue(metadata["targetValue"])
+	if err != nil {
+		log.Error("Invalid targetValue: %v", err)
+		return nil, err
 	}
 
 	options := metrics.QueryOptions{
@@ -108,7 +105,7 @@ func (s *ExternalScalerServer) GetMetrics(ctx context.Context, req *protos.GetMe
 		FolderID:              metadata["folderId"],
 		NaNStrategy:           metrics.ParseNaNStrategy(metadata["nanStrategy"]),
 		AggregationMethod:     metrics.ParseAggregationMethod(metadata["aggregationMethod"]),
-		TimeSeriesAggregation: metrics.ParseAggregationMethod(metadata["timeSeriesAggregation"]),
+		TimeSeriesAggregation: metrics.ParseOptionalAggregationMethod(metadata["timeSeriesAggregation"]),
 		TimeWindow:            metadata["timeWindow"],
 		TimeWindowOffset:      metadata["timeWindowOffset"],
 		Downsampling:          metrics.ParseDownsamplingOptions(metadata),
@@ -133,4 +130,20 @@ func (s *ExternalScalerServer) GetMetrics(ctx context.Context, req *protos.GetMe
 	return &protos.GetMetricsResponse{
 		MetricValues: []*protos.MetricValue{metricVal},
 	}, nil
+}
+
+func parseTargetValue(value string) (float64, error) {
+	if value == "" {
+		return 80, nil
+	}
+
+	target, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0, fmt.Errorf("targetValue must be a positive finite number: %q", value)
+	}
+	if target <= 0 || math.IsNaN(target) || math.IsInf(target, 0) {
+		return 0, fmt.Errorf("targetValue must be a positive finite number: %q", value)
+	}
+
+	return target, nil
 }

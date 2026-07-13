@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.26.x
+          cache: true
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Run Go and Helm checks
+        run: make verify
+
+      - name: Validate packaged chart
+        run: |
+          make package
+          helm lint --strict dist/yc-keda-external-scaler-1.3.0.tgz --set-string secret.data=test-key
+          helm template packaged dist/yc-keda-external-scaler-1.3.0.tgz --set-string secret.data=test-key >/dev/null

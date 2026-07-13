@@ -18,15 +18,17 @@ spec:
     metadata:
       labels:
         {{- include "yc-keda-external-scaler.selectorLabels" . | nindent 8 }}
+      {{- if and .Values.secret.create (not .Values.secret.existingSecret) }}
       annotations:
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "yc-keda-external-scaler.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       {{- with .Values.affinity }}
       affinity:
-        {{- toYaml . | nindent 8 }}
+        {{- tpl (toYaml .) $ | nindent 8 }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
@@ -38,7 +40,7 @@ spec:
       {{- end }}
       containers:
         - name: scaler
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: {{ include "yc-keda-external-scaler.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
@@ -67,7 +69,7 @@ spec:
           volumeMounts:
             - name: sa-key
               mountPath: {{ .Values.config.keyPath | quote }}
-              subPath: sa-key.json
+              subPath: {{ .Values.secret.key | quote }}
               readOnly: true
           startupProbe:
             httpGet:
@@ -98,5 +100,5 @@ spec:
       volumes:
         - name: sa-key
           secret:
-            secretName: {{ .Values.secretName }}
+            secretName: {{ include "yc-keda-external-scaler.secretName" . }}
             defaultMode: 0400

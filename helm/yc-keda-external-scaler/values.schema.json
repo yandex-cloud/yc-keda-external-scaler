@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "nameOverride": {
+      "type": "string"
+    },
+    "fullnameOverride": {
+      "type": "string"
+    },
+    "image": {
+      "type": "object",
+      "required": ["repository", "tag", "digest", "pullPolicy"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tag": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^(|sha256:[a-fA-F0-9]{64})$"
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": ["Always", "IfNotPresent", "Never"]
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "required": ["create", "automountServiceAccountToken"],
+      "properties": {
+        "create": {
+          "type": "boolean"
+        },
+        "automountServiceAccountToken": {
+          "type": "boolean"
+        }
+      }
+    },
+    "secretName": {
+      "type": "string"
+    },
+    "secret": {
+      "type": "object",
+      "required": ["create", "existingSecret", "name", "key", "data"],
+      "properties": {
+        "create": {
+          "type": "boolean"
+        },
+        "existingSecret": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "required": ["image", "serviceAccount", "secret"],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "secret": {
+            "properties": {
+              "existingSecret": {
+                "minLength": 1
+              }
+            }
+          }
+        }
+      },
+      "then": {},
+      "else": {
+        "if": {
+          "properties": {
+            "secret": {
+              "properties": {
+                "create": {
+                  "const": true
+                }
+              }
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "secret": {
+              "properties": {
+                "data": {
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        "else": {
+          "properties": {
+            "secretName": {
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  ]
+}

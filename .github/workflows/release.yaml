@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CHART_DIR: helm/yc-keda-external-scaler
+  IMAGE_REPOSITORY: cr.yandex/sol/keda/yc-keda-external-scaler
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository and stable history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.26.x
+          cache: true
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Validate tag and release versions
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "release tag must reference a commit contained in master" >&2
+            exit 1
+          fi
+
+          tag="$GITHUB_REF_NAME"
+          version="${tag#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "only stable semantic-version tags such as v1.3.0 are allowed" >&2
+            exit 1
+          fi
+
+          chart_version="$(sed -n 's/^version: //p' "$CHART_DIR/Chart.yaml")"
+          app_version="$(sed -n 's/^appVersion: "\(.*\)"/\1/p' "$CHART_DIR/Chart.yaml")"
+          if [[ "$chart_version" != "$version" || "$app_version" != "$tag" ]]; then
+            echo "tag ($tag), chart version ($chart_version), and app version ($app_version) must agree" >&2
+            exit 1
+          fi
+
+          rendered_image="$(helm template release-check "$CHART_DIR" --set-string secret.data=test-key | sed -n 's/^[[:space:]]*image: "\(.*\)"/\1/p')"
+          if [[ "$rendered_image" != "$IMAGE_REPOSITORY:$tag" ]]; then
+            echo "default image ($rendered_image) does not match $IMAGE_REPOSITORY:$tag" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+
+      - name: Verify public multi-platform image
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="$IMAGE_REPOSITORY:$GITHUB_REF_NAME"
+          docker buildx imagetools inspect "$image"
+          docker buildx imagetools inspect --raw "$image" >image-index.json
+          jq -e '
+            [.manifests[].platform | select(.os == "linux") | .architecture] as $architectures
+            | ($architectures | index("amd64")) != null
+              and ($architectures | index("arm64")) != null
+          ' image-index.json
+
+      - name: Run release checks
+        run: make verify
+
+      - name: Package chart and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          make package
+          cd dist
+          sha256sum "yc-keda-external-scaler-${{ steps.version.outputs.version }}.tgz" >checksums.txt
+
+      - name: Create GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --generate-notes \
+            --title "yc-keda-external-scaler $GITHUB_REF_NAME" \
+            "dist/yc-keda-external-scaler-${{ steps.version.outputs.version }}.tgz" \
+            dist/checksums.txt
