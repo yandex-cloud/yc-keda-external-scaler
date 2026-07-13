@@ -28,7 +28,7 @@ jobs:
           cache: true
 
       - name: Set up Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
 
       - name: Validate tag and release versions
         id: version

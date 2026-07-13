@@ -23,7 +23,7 @@ jobs:
           cache: true
 
       - name: Set up Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
 
       - name: Run Go and Helm checks
         run: make verify
