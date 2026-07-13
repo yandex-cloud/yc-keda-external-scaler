@@ -1,10 +1,6 @@
 # yc-keda-external-scaler
 [KEDA External Scaler](https://keda.sh/docs/2.20/concepts/external-scalers/) for [Yandex Cloud Monitoring](https://yandex.cloud/en/services/monitoring).
 
-Releases publish an immutable multi-platform scaler image to Yandex Container
-Registry and attach the packaged Helm chart to the corresponding GitHub
-Release. Mutable `latest` artifacts are intentionally not published.
-
 ## Deployment
 
 1. [Install](https://keda.sh/docs/2.20/deploy/) KEDA.
@@ -36,7 +32,7 @@ release name, the stable gRPC endpoint is
 
 Release `v1.3.0` consists of:
 
-- `cr.yandex/sol/keda/yc-keda-external-scaler:v1.3.0`
+- `cr.yandex/sol/keda/yc-keda-external-scaler:v1.3.0` Docker image
 - `yc-keda-external-scaler-1.3.0.tgz` on the GitHub Release
 - `checksums.txt` containing the chart SHA-256 checksum
 
@@ -44,30 +40,6 @@ Verify a downloaded release chart with:
 
 ```bash
 sha256sum --check checksums.txt
-```
-
-See [UPGRADING.md](UPGRADING.md) for the `1.3.0` compatibility notes and
-[RELEASING.md](RELEASING.md) for the maintainer release procedure.
-
-## Koldun consumption
-
-Koldun can download the immutable GitHub Release chart and copy the scaler
-image independently:
-
-```yaml
-scalerVersion: "1.3.0"
-
-charts:
-  yc-keda-external-scaler:
-    source: "https://github.com/yandex-cloud/yc-keda-external-scaler/releases/download/v{{ .scalerVersion }}/yc-keda-external-scaler-{{ .scalerVersion }}.tgz"
-    name: "yc-keda-external-scaler"
-    includeInto: "helm"
-
-images:
-  yc-keda-external-scaler:
-    copy:
-      repository: "cr.yandex/sol/keda/yc-keda-external-scaler"
-      tag: "v{{ .scalerVersion }}"
 ```
 
 ## Usage with ScaledObject
