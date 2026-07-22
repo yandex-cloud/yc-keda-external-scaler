@@ -123,7 +123,9 @@ spec:
               - serviceAccountToken:
                   path: {{ base .Values.auth.workloadIdentityFederation.subjectTokenPath | quote }}
                   expirationSeconds: {{ .Values.auth.workloadIdentityFederation.tokenExpirationSeconds }}
-                  audience: {{ required "auth.workloadIdentityFederation.audience is required when WLIF is enabled" .Values.auth.workloadIdentityFederation.audience | quote }}
+                  {{ with .Values.auth.workloadIdentityFederation.audience }}
+                  audience: {{ . | quote }}
+                  {{ end }}
         {{- else }}
         - name: sa-key
           secret:

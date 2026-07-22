@@ -9,7 +9,7 @@ helm template yc-keda-external-scaler "$chart" \
   --set-string secret.data=test-key >"$workdir/default.yaml"
 grep -q '^kind: Secret$' "$workdir/default.yaml"
 grep -q 'automountServiceAccountToken: false' "$workdir/default.yaml"
-grep -q 'image: "cr.yandex/sol/keda/yc-keda-external-scaler:v1.4.0"' "$workdir/default.yaml"
+grep -q 'image: "cr.yandex/sol/keda/yc-keda-external-scaler:v1.4.1"' "$workdir/default.yaml"
 grep -q 'value: "authorizedKey"' "$workdir/default.yaml"
 grep -q 'name: yc-keda-external-scaler' "$workdir/default.yaml"
 grep -q 'secretName: yc-keda-external-scaler' "$workdir/default.yaml"
@@ -66,23 +66,24 @@ fi
 
 helm template scaler "$chart" \
   --set auth.workloadIdentityFederation.serviceAccountID=wlif-service-account \
-  --set auth.workloadIdentityFederation.audience=https://storage.example.test/mk8s-oidc/cluster \
   --set-string secret.data=ignored-key >"$workdir/wlif.yaml"
 grep -q 'yandex.cloud/federated-yc-service-account-id: "wlif-service-account"' "$workdir/wlif.yaml"
 grep -q 'value: "workloadIdentityFederation"' "$workdir/wlif.yaml"
 grep -q 'value: "https://auth.yandex.cloud/oauth/token"' "$workdir/wlif.yaml"
 grep -q 'value: "/var/run/secrets/tokens/yc-wlif-token"' "$workdir/wlif.yaml"
-grep -q 'audience: "https://storage.example.test/mk8s-oidc/cluster"' "$workdir/wlif.yaml"
 grep -q 'expirationSeconds: 3600' "$workdir/wlif.yaml"
 grep -q 'mountPath: "/var/run/secrets/tokens"' "$workdir/wlif.yaml"
+if grep -q 'audience:' "$workdir/wlif.yaml"; then
+  echo "default WLIF mode rendered an explicit audience" >&2
+  exit 1
+fi
 if grep -q '^kind: Secret$' "$workdir/wlif.yaml" || grep -q 'name: sa-key' "$workdir/wlif.yaml"; then
   echo "WLIF mode rendered authorized-key resources" >&2
   exit 1
 fi
 
-if helm template scaler "$chart" \
+helm template scaler "$chart" \
   --set auth.workloadIdentityFederation.serviceAccountID=wlif-service-account \
-  >"$workdir/wlif-missing-audience.yaml" 2>"$workdir/wlif-missing-audience.err"; then
-  echo "WLIF mode rendered without an audience" >&2
-  exit 1
-fi
+  --set auth.workloadIdentityFederation.audience=https://storage.example.test/mk8s-oidc/cluster \
+  >"$workdir/wlif-explicit-audience.yaml"
+grep -q 'audience: "https://storage.example.test/mk8s-oidc/cluster"' "$workdir/wlif-explicit-audience.yaml"

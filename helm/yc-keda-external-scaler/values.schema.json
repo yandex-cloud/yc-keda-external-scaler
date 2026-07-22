@@ -121,21 +121,7 @@
           }
         }
       },
-      "then": {
-        "properties": {
-          "auth": {
-            "properties": {
-              "workloadIdentityFederation": {
-                "properties": {
-                  "audience": {
-                    "minLength": 1
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
+      "then": {},
       "else": {
         "if": {
           "properties": {

@@ -31,5 +31,5 @@ jobs:
       - name: Validate packaged chart
         run: |
           make package
-          helm lint --strict dist/yc-keda-external-scaler-1.4.0.tgz --set-string secret.data=test-key
-          helm template packaged dist/yc-keda-external-scaler-1.4.0.tgz --set-string secret.data=test-key >/dev/null
+          helm lint --strict dist/yc-keda-external-scaler-1.4.1.tgz --set-string secret.data=test-key
+          helm template packaged dist/yc-keda-external-scaler-1.4.1.tgz --set-string secret.data=test-key >/dev/null

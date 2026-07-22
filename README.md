@@ -24,16 +24,18 @@ yc iam workload-identity federated-credential create \
   --external-subject-id "system:serviceaccount:keda:yc-keda-external-scaler"
 
 helm install yc-keda-external-scaler \
-  https://github.com/yandex-cloud/yc-keda-external-scaler/releases/download/v1.4.0/yc-keda-external-scaler-1.4.0.tgz \
+  https://github.com/yandex-cloud/yc-keda-external-scaler/releases/download/v1.4.1/yc-keda-external-scaler-1.4.1.tgz \
   --namespace keda \
   --create-namespace \
-  --set auth.workloadIdentityFederation.serviceAccountID="$YC_SERVICE_ACCOUNT_ID" \
-  --set auth.workloadIdentityFederation.audience="$CLUSTER_WLIF_ISSUER"
+  --set auth.workloadIdentityFederation.serviceAccountID="$YC_SERVICE_ACCOUNT_ID"
 ```
 
-The chart projects a rotating Kubernetes service-account token with the
-configured audience. The scaler exchanges it at
-`https://auth.yandex.cloud/oauth/token` and caches the resulting IAM token.
+The chart projects a rotating Kubernetes service-account token. By default,
+Kubernetes uses the API server's default audience, which is accepted by a
+Managed Kubernetes workload identity federation configured from that cluster.
+Set `auth.workloadIdentityFederation.audience` to the cluster issuer URL only
+when an explicit audience override is required. The scaler exchanges the token
+at `https://auth.yandex.cloud/oauth/token` and caches the resulting IAM token.
 `auth.workloadIdentityFederation.tokenExchangeURL` can override the exchange
 endpoint when required by another environment.
 
@@ -49,7 +51,7 @@ and save it locally:
 
 ```bash
 helm install yc-keda-external-scaler \
-  https://github.com/yandex-cloud/yc-keda-external-scaler/releases/download/v1.4.0/yc-keda-external-scaler-1.4.0.tgz \
+  https://github.com/yandex-cloud/yc-keda-external-scaler/releases/download/v1.4.1/yc-keda-external-scaler-1.4.1.tgz \
   --set-file secret.data=./key.json
 ```
 
@@ -58,7 +60,7 @@ an existing Secret instead:
 
 ```bash
 helm install yc-keda-external-scaler \
-  https://github.com/yandex-cloud/yc-keda-external-scaler/releases/download/v1.4.0/yc-keda-external-scaler-1.4.0.tgz \
+  https://github.com/yandex-cloud/yc-keda-external-scaler/releases/download/v1.4.1/yc-keda-external-scaler-1.4.1.tgz \
   --set secret.existingSecret=my-yandex-key \
   --set secret.key=sa-key.json
 ```
@@ -74,10 +76,10 @@ mount the key Secret.
 
 ## Release artifacts
 
-Release `v1.4.0` consists of:
+Release `v1.4.1` consists of:
 
-- `cr.yandex/sol/keda/yc-keda-external-scaler:v1.4.0` Docker image
-- `yc-keda-external-scaler-1.4.0.tgz` on the GitHub Release
+- `cr.yandex/sol/keda/yc-keda-external-scaler:v1.4.1` Docker image
+- `yc-keda-external-scaler-1.4.1.tgz` on the GitHub Release
 - `checksums.txt` containing the chart SHA-256 checksum
 
 Verify a downloaded release chart with:

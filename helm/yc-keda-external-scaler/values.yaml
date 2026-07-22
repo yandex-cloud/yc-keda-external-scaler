@@ -14,6 +14,7 @@ image:
 auth:
   workloadIdentityFederation:
     serviceAccountID: ""
+    # Optional. When empty, Kubernetes uses the API server's default audience.
     audience: ""
     tokenExchangeURL: "https://auth.yandex.cloud/oauth/token"
     subjectTokenPath: "/var/run/secrets/tokens/yc-wlif-token"
