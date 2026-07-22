@@ -1,13 +1,15 @@
 package auth
 
 import (
+	"context"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -27,6 +29,7 @@ type YandexAuth struct {
 	tokenCache *tokenCacheEntry
 	mutex      sync.RWMutex
 	config     *config.Config
+	httpClient *http.Client
 }
 
 type tokenCacheEntry struct {
@@ -45,12 +48,13 @@ func NewYandexAuth(keyPath string, cfg *config.Config) (*YandexAuth, error) {
 		return nil, err
 	}
 	return &YandexAuth{
-		saKey:  key,
-		config: cfg,
+		saKey:      key,
+		config:     cfg,
+		httpClient: &http.Client{Timeout: cfg.APITimeout},
 	}, nil
 }
 
-func (y *YandexAuth) GetToken() (string, error) {
+func (y *YandexAuth) GetToken(ctx context.Context) (string, error) {
 	y.mutex.RLock()
 	if y.tokenCache != nil && time.Now().Before(y.tokenCache.expiresAt) {
 		token := y.tokenCache.token
@@ -66,7 +70,7 @@ func (y *YandexAuth) GetToken() (string, error) {
 		return y.tokenCache.token, nil
 	}
 
-	token, expiresAt, err := y.createNewToken()
+	token, expiresAt, err := y.createNewToken(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -79,7 +83,7 @@ func (y *YandexAuth) GetToken() (string, error) {
 	return token, nil
 }
 
-func (y *YandexAuth) createNewToken() (string, time.Time, error) {
+func (y *YandexAuth) createNewToken(ctx context.Context) (string, time.Time, error) {
 	jwtToken, err := y.createJWT()
 	if err != nil {
 		return "", time.Time{}, fmt.Errorf("failed to create JWT: %v", err)
@@ -88,18 +92,20 @@ func (y *YandexAuth) createNewToken() (string, time.Time, error) {
 	payload := map[string]string{"jwt": jwtToken}
 	payloadBytes, _ := json.Marshal(payload)
 
-	resp, err := http.Post(
-		y.config.GetIAMTokenURL(),
-		"application/json",
-		strings.NewReader(string(payloadBytes)),
-	)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, y.config.GetIAMTokenURL(), strings.NewReader(string(payloadBytes)))
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("failed to create IAM token request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := y.httpClient.Do(req)
 	if err != nil {
 		return "", time.Time{}, fmt.Errorf("failed to get IAM token: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return "", time.Time{}, fmt.Errorf("IAM API error: %d, %s", resp.StatusCode, string(body))
 	}
 
@@ -148,13 +154,13 @@ func (y *YandexAuth) createJWT() (string, error) {
 }
 
 func (y *YandexAuth) CreateIAMToken() (string, error) {
-	return y.GetToken()
+	return y.GetToken(context.Background())
 }
 
 func loadServiceAccountKey(keyPath string) (ServiceAccountKey, error) {
 	var key ServiceAccountKey
 
-	data, err := ioutil.ReadFile(keyPath)
+	data, err := os.ReadFile(keyPath)
 	if err != nil {
 		return key, fmt.Errorf("failed to read key file: %v", err)
 	}

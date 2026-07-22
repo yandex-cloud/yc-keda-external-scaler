@@ -18,7 +18,7 @@ spec:
     metadata:
       labels:
         {{- include "yc-keda-external-scaler.selectorLabels" . | nindent 8 }}
-      {{- if and .Values.secret.create (not .Values.secret.existingSecret) }}
+      {{- if and (eq (include "yc-keda-external-scaler.authMethod" .) "authorizedKey") .Values.secret.create (not .Values.secret.existingSecret) }}
       annotations:
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
       {{- end }}
@@ -45,6 +45,8 @@ spec:
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           env:
+            - name: AUTH_METHOD
+              value: {{ include "yc-keda-external-scaler.authMethod" . | quote }}
             - name: IAM_ENDPOINT
               value: {{ .Values.config.iamEndpoint | quote }}
             - name: MONITORING_ENDPOINT
@@ -55,8 +57,17 @@ spec:
               value: {{ .Values.config.httpPort | quote }}
             - name: HEALTH_PATH
               value: {{ .Values.config.healthPath | quote }}
+            {{- if eq (include "yc-keda-external-scaler.authMethod" .) "workloadIdentityFederation" }}
+            - name: WLIF_SERVICE_ACCOUNT_ID
+              value: {{ .Values.auth.workloadIdentityFederation.serviceAccountID | quote }}
+            - name: WLIF_TOKEN_EXCHANGE_URL
+              value: {{ .Values.auth.workloadIdentityFederation.tokenExchangeURL | quote }}
+            - name: WLIF_SUBJECT_TOKEN_FILE
+              value: {{ .Values.auth.workloadIdentityFederation.subjectTokenPath | quote }}
+            {{- else }}
             - name: KEY_PATH
               value: {{ .Values.config.keyPath | quote }}
+            {{- end }}
             - name: API_TIMEOUT
               value: {{ .Values.config.apiTimeout | quote }}
           ports:
@@ -67,10 +78,16 @@ spec:
               name: http
               protocol: TCP
           volumeMounts:
+            {{- if eq (include "yc-keda-external-scaler.authMethod" .) "workloadIdentityFederation" }}
+            - name: wlif-token
+              mountPath: {{ dir .Values.auth.workloadIdentityFederation.subjectTokenPath | quote }}
+              readOnly: true
+            {{- else }}
             - name: sa-key
               mountPath: {{ .Values.config.keyPath | quote }}
               subPath: {{ .Values.secret.key | quote }}
               readOnly: true
+            {{- end }}
           startupProbe:
             httpGet:
               path: {{ .Values.config.healthPath }}
@@ -98,7 +115,18 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
+        {{- if eq (include "yc-keda-external-scaler.authMethod" .) "workloadIdentityFederation" }}
+        - name: wlif-token
+          projected:
+            defaultMode: 0400
+            sources:
+              - serviceAccountToken:
+                  path: {{ base .Values.auth.workloadIdentityFederation.subjectTokenPath | quote }}
+                  expirationSeconds: {{ .Values.auth.workloadIdentityFederation.tokenExpirationSeconds }}
+                  audience: {{ required "auth.workloadIdentityFederation.audience is required when WLIF is enabled" .Values.auth.workloadIdentityFederation.audience | quote }}
+        {{- else }}
         - name: sa-key
           secret:
             secretName: {{ include "yc-keda-external-scaler.secretName" . }}
             defaultMode: 0400
+        {{- end }}

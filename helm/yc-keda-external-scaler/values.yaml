@@ -1,4 +1,4 @@
-replicaCount: 2
+replicaCount: 1
 
 nameOverride: ""
 fullnameOverride: ""
@@ -8,6 +8,16 @@ image:
   tag: ""
   digest: ""
   pullPolicy: IfNotPresent
+
+# Authentication configuration. A non-empty WLIF service account ID selects
+# workload identity federation; otherwise the authorized-key Secret is used.
+auth:
+  workloadIdentityFederation:
+    serviceAccountID: ""
+    audience: ""
+    tokenExchangeURL: "https://auth.yandex.cloud/oauth/token"
+    subjectTokenPath: "/var/run/secrets/tokens/yc-wlif-token"
+    tokenExpirationSeconds: 3600
 
 # Application configuration
 config:

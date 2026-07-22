@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -14,7 +15,7 @@ import (
 )
 
 type Client struct {
-	auth   *auth.YandexAuth
+	auth   auth.TokenProvider
 	config *config.Config
 }
 
@@ -38,18 +39,18 @@ type MetricResponse struct {
 	} `json:"metrics"`
 }
 
-func NewClient(auth *auth.YandexAuth, cfg *config.Config) *Client {
+func NewClient(auth auth.TokenProvider, cfg *config.Config) *Client {
 	return &Client{
 		auth:   auth,
 		config: cfg,
 	}
 }
 
-func (c *Client) QueryMetric(options QueryOptions, logger *logger.Logger) (float64, error) {
+func (c *Client) QueryMetric(ctx context.Context, options QueryOptions, logger *logger.Logger) (float64, error) {
 	logger.Debug("Querying metric: query=%s, folder=%s, hasDownsampling=%t, timeWindowOffset=%s",
 		options.Query, options.FolderID, options.Downsampling.HasSettings, options.TimeWindowOffset)
 
-	token, err := c.auth.GetToken()
+	token, err := c.auth.GetToken(ctx)
 	if err != nil {
 		logger.Error("Failed to get IAM token: %v", err)
 		return 0, fmt.Errorf("failed to get IAM token: %v", err)

@@ -1,4 +1,4 @@
-VERSION ?= 1.3.0
+VERSION ?= 1.4.0
 CHART_DIR ?= helm/yc-keda-external-scaler
 DIST_DIR ?= dist
 IMAGE ?= cr.yandex/sol/keda/yc-keda-external-scaler:v$(VERSION)

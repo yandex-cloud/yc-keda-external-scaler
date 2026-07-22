@@ -5,11 +5,51 @@
 
 1. [Install](https://keda.sh/docs/2.20/deploy/) KEDA.
 2. [Create](https://yandex.cloud/en/docs/iam/operations/sa/create) a service account with the `monitoring.viewer` role.
-3. [Create](https://yandex.cloud/en/docs/iam/operations/authentication/manage-authorized-keys#create-authorized-key) an authorized key and save it locally.
+
+### Workload identity federation (recommended)
+
+WLIF avoids storing a long-lived authorized key in the cluster. First
+[enable workload identity federation for the Managed Kubernetes cluster and node group](https://yandex.cloud/en/docs/iam/tutorials/wlif-managed-k8s-integration),
+then create an IAM workload identity federation using the cluster issuer URL as
+both issuer and audience and the cluster JWKS URL as its key set.
+
+Link the Yandex Cloud service account to the Kubernetes service account that
+the chart will create. With the release name and namespace below, the external
+subject is `system:serviceaccount:keda:yc-keda-external-scaler`:
+
+```bash
+yc iam workload-identity federated-credential create \
+  --service-account-id "$YC_SERVICE_ACCOUNT_ID" \
+  --federation-id "$FEDERATION_ID" \
+  --external-subject-id "system:serviceaccount:keda:yc-keda-external-scaler"
+
+helm install yc-keda-external-scaler \
+  https://github.com/yandex-cloud/yc-keda-external-scaler/releases/download/v1.4.0/yc-keda-external-scaler-1.4.0.tgz \
+  --namespace keda \
+  --create-namespace \
+  --set auth.workloadIdentityFederation.serviceAccountID="$YC_SERVICE_ACCOUNT_ID" \
+  --set auth.workloadIdentityFederation.audience="$CLUSTER_WLIF_ISSUER"
+```
+
+The chart projects a rotating Kubernetes service-account token with the
+configured audience. The scaler exchanges it at
+`https://auth.yandex.cloud/oauth/token` and caches the resulting IAM token.
+`auth.workloadIdentityFederation.tokenExchangeURL` can override the exchange
+endpoint when required by another environment.
+
+If `serviceAccount.create=false`, configure the federated credential for the
+selected existing Kubernetes service account. The chart cannot add the Yandex
+Cloud annotation to an existing ServiceAccount.
+
+### Authorized key
+
+Authorized-key authentication remains supported for existing installations.
+[Create an authorized key](https://yandex.cloud/en/docs/iam/operations/authentication/manage-authorized-keys#create-authorized-key)
+and save it locally:
 
 ```bash
 helm install yc-keda-external-scaler \
-  https://github.com/yandex-cloud/yc-keda-external-scaler/releases/download/v1.3.0/yc-keda-external-scaler-1.3.0.tgz \
+  https://github.com/yandex-cloud/yc-keda-external-scaler/releases/download/v1.4.0/yc-keda-external-scaler-1.4.0.tgz \
   --set-file secret.data=./key.json
 ```
 
@@ -18,22 +58,26 @@ an existing Secret instead:
 
 ```bash
 helm install yc-keda-external-scaler \
-  https://github.com/yandex-cloud/yc-keda-external-scaler/releases/download/v1.3.0/yc-keda-external-scaler-1.3.0.tgz \
+  https://github.com/yandex-cloud/yc-keda-external-scaler/releases/download/v1.4.0/yc-keda-external-scaler-1.4.0.tgz \
   --set secret.existingSecret=my-yandex-key \
   --set secret.key=sa-key.json
 ```
 
 The chart supports Kubernetes 1.23 and newer. It creates no scaler RBAC and
-does not automount a Kubernetes service-account token. With the recommended
-release name, the stable gRPC endpoint is
+does not automatically mount a Kubernetes service-account token. WLIF uses an
+explicit projected token volume. With the recommended release name, the stable gRPC endpoint is
 `yc-keda-external-scaler.<namespace>.svc.cluster.local:8080`.
+
+When `auth.workloadIdentityFederation.serviceAccountID` is non-empty, WLIF
+takes precedence over authorized-key values and the chart does not render or
+mount the key Secret.
 
 ## Release artifacts
 
-Release `v1.3.0` consists of:
+Release `v1.4.0` consists of:
 
-- `cr.yandex/sol/keda/yc-keda-external-scaler:v1.3.0` Docker image
-- `yc-keda-external-scaler-1.3.0.tgz` on the GitHub Release
+- `cr.yandex/sol/keda/yc-keda-external-scaler:v1.4.0` Docker image
+- `yc-keda-external-scaler-1.4.0.tgz` on the GitHub Release
 - `checksums.txt` containing the chart SHA-256 checksum
 
 Verify a downloaded release chart with:

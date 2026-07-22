@@ -32,6 +32,14 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 {{- end }}
 
+{{- define "yc-keda-external-scaler.authMethod" -}}
+{{- if .Values.auth.workloadIdentityFederation.serviceAccountID -}}
+workloadIdentityFederation
+{{- else -}}
+authorizedKey
+{{- end -}}
+{{- end }}
+
 {{- define "yc-keda-external-scaler.secretName" -}}
 {{- if .Values.secret.existingSecret -}}
 {{- .Values.secret.existingSecret -}}

@@ -33,6 +33,38 @@
         }
       }
     },
+    "auth": {
+      "type": "object",
+      "required": ["workloadIdentityFederation"],
+      "properties": {
+        "workloadIdentityFederation": {
+          "type": "object",
+          "required": ["serviceAccountID", "audience", "tokenExchangeURL", "subjectTokenPath", "tokenExpirationSeconds"],
+          "properties": {
+            "serviceAccountID": {
+              "type": "string"
+            },
+            "audience": {
+              "type": "string"
+            },
+            "tokenExchangeURL": {
+              "type": "string",
+              "format": "uri",
+              "minLength": 1
+            },
+            "subjectTokenPath": {
+              "type": "string",
+              "pattern": "^/.*[^/]$"
+            },
+            "tokenExpirationSeconds": {
+              "type": "integer",
+              "minimum": 600,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
     "serviceAccount": {
       "type": "object",
       "required": ["create", "automountServiceAccountToken"],
@@ -71,48 +103,80 @@
       }
     }
   },
-  "required": ["image", "serviceAccount", "secret"],
+  "required": ["image", "auth", "serviceAccount", "secret"],
   "allOf": [
     {
       "if": {
         "properties": {
-          "secret": {
+          "auth": {
             "properties": {
-              "existingSecret": {
-                "minLength": 1
+              "workloadIdentityFederation": {
+                "properties": {
+                  "serviceAccountID": {
+                    "minLength": 1
+                  }
+                }
               }
             }
           }
         }
       },
-      "then": {},
+      "then": {
+        "properties": {
+          "auth": {
+            "properties": {
+              "workloadIdentityFederation": {
+                "properties": {
+                  "audience": {
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "else": {
         "if": {
           "properties": {
             "secret": {
               "properties": {
-                "create": {
-                  "const": true
-                }
-              }
-            }
-          }
-        },
-        "then": {
-          "properties": {
-            "secret": {
-              "properties": {
-                "data": {
+                "existingSecret": {
                   "minLength": 1
                 }
               }
             }
           }
         },
+        "then": {},
         "else": {
-          "properties": {
-            "secretName": {
-              "minLength": 1
+          "if": {
+            "properties": {
+              "secret": {
+                "properties": {
+                  "create": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "secret": {
+                "properties": {
+                  "data": {
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "secretName": {
+                "minLength": 1
+              }
             }
           }
         }

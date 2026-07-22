@@ -20,7 +20,7 @@ type ExternalScalerServer struct {
 }
 
 func NewExternalScalerServer(keyPath string, cfg *config.Config) (*ExternalScalerServer, error) {
-	auth, err := auth.NewYandexAuth(keyPath, cfg)
+	auth, err := auth.NewTokenProvider(keyPath, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func (s *ExternalScalerServer) IsActive(ctx context.Context, req *protos.ScaledO
 		Downsampling:      metrics.ParseDownsamplingOptions(metadata),
 	}
 
-	value, err := s.metricsClient.QueryMetric(options, log)
+	value, err := s.metricsClient.QueryMetric(ctx, options, log)
 	if err != nil {
 		log.Error("Error querying metric: %v", err)
 		log.LogKEDAResponse("IsActive", false, 0, 0, err)
@@ -111,7 +111,7 @@ func (s *ExternalScalerServer) GetMetrics(ctx context.Context, req *protos.GetMe
 		Downsampling:          metrics.ParseDownsamplingOptions(metadata),
 	}
 
-	value, err := s.metricsClient.QueryMetric(options, log)
+	value, err := s.metricsClient.QueryMetric(ctx, options, log)
 	if err != nil {
 		log.Error("Failed to query metric: %v", err)
 		log.LogKEDAResponse("GetMetrics", false, 0, targetValue, err)
