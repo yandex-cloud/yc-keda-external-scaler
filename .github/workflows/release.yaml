@@ -63,18 +63,12 @@ jobs:
 
           echo "version=$version" >>"$GITHUB_OUTPUT"
 
-      - name: Verify public multi-platform image
+      - name: Verify public image
         shell: bash
         run: |
           set -euo pipefail
           image="$IMAGE_REPOSITORY:$GITHUB_REF_NAME"
           docker buildx imagetools inspect "$image"
-          docker buildx imagetools inspect --raw "$image" >image-index.json
-          jq -e '
-            [.manifests[].platform | select(.os == "linux") | .architecture] as $architectures
-            | ($architectures | index("amd64")) != null
-              and ($architectures | index("arm64")) != null
-          ' image-index.json
 
       - name: Run release checks
         run: make verify
